@@ -1,5 +1,29 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
+ * 来源与派生说明（Attribution）
+ * -----------------------------
+ * 本文件不是从零发明 WMI：**传输层与命令码表派生自 Linux 内核的**
+ *   drivers/platform/x86/hp/hp-wmi.c        （GPL-2.0）
+ * 具体派生部分：
+ *   · struct bios_args 的报文布局、encode_outsize_for_pvsz() 的 method_id 编码；
+ *   · 命令码常量（HPWMI_GM / FAN_COUNT_GET 0x10 / FAN_SPEED_GET 0x11 /
+ *     SET_FAN_SPEED 0x12 / SET_PERFORMANCE_MODE 0x1A / GPU_THERMAL 0x21,0x22 …）；
+ *   · omen_gpu_power_modes 等结构体布局、omen_thermal_profile_set() 的分支语义；
+ *   · fan_rpm 的读取方式（逐条对应 hp_wmi_get_fan_speed()）。
+ * 上述代码的版权归上游 hp-wmi 的作者所有 —— 见内核源码该文件的版权头与
+ * git 历史；本文件按 GPL-2.0 整体分发（这也是它必须是 GPL 的原因）。
+ *
+ * 本模块**新增**的部分：
+ *   · 用 GM12(0x12) 写风扇百分比的用法与 0/255/release 的实测语义；
+ *   · OMEN 16-k0xxx（board 8A1A）的探测顺序与 sysfs 接口集合；
+ *   · DMI 白名单与 allow_unsafe_writes 安全阀；
+ *   · 对 0x2D/0x2E（Victus S 专用）命令在本机返回 EIO 的实测记录。
+ *
+ * 如果你要把这里的代码搬回 in-tree hp-wmi，请以那个文件为基准，
+ * 不要把本文件的注释当作上游语义的唯一依据。
+ */
+
+/*
  * hp-wmi-omen — 直接向 HP 固件发送 OMEN 私有 WMI 命令
  *
  * 背景

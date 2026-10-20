@@ -1,5 +1,23 @@
 # hp-wmi-omen — 直接调用 HP 固件私有 WMI 接口的内核模块
 
+> ## 来源与署名
+>
+> 这个模块**不是从零发明 WMI**。传输层与命令码表来自 Linux 内核的
+> [`drivers/platform/x86/hp/hp-wmi.c`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/drivers/platform/x86/hp/hp-wmi.c)（GPL-2.0）：
+>
+> | 派生自上游 hp-wmi | 本模块新增 |
+> | :- | :- |
+> | `struct bios_args` 报文布局、`encode_outsize_for_pvsz()` | `GM12`(0x12) 写风扇百分比的用法，以及 0 / 255 / `release` 的实测语义 |
+> | 命令码（0x10 / 0x11 / 0x12 / 0x1A / 0x21 / 0x22 …） | OMEN 16-k0xxx（8A1A）的探测顺序与 sysfs 接口集合 |
+> | `omen_gpu_power_modes` 等结构体、`omen_thermal_profile_set()` 分支 | DMI 白名单 + `allow_unsafe_writes` 安全阀 |
+> | `hp_wmi_get_fan_speed()` 的读取方式 | 0x2D/0x2E（Victus S 专用）在本机返回 `EIO` 的实测记录 |
+>
+> 上游代码的版权归 hp-wmi 作者所有（见内核源码该文件的版权头与 git 历史）。
+> 本仓库按 **GPL-2.0** 分发，正是因为存在这个派生关系 —— 不是"挑了一个许可证"。
+> 若要把代码并回内核，请以上游文件为基准，不要拿本仓库的注释当上游语义的唯一依据。
+>
+> `OMEN` / `HP` 是 HP Inc. 的商标。本项目与 HP 无任何关联，名称仅作机型说明。
+
 ## 为什么需要它
 
 上游内核的 `hp-wmi` 驱动**不认识本机主板 `8A1A`**，所以 `platform_profile` 切档时
