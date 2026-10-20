@@ -1112,6 +1112,10 @@ static int __init hp_omen_init(void)
 	 *   永不返回（initstate 永远 coming）。探测一律推迟到 sysfs 读写时。
 	 */
 	pr_info("hp_omen: [2/3] WMI probe deferred to first use\n");
+	pr_info("hp_omen: writes %s (board %s, vendor %s)\n",
+		hp_omen_writes_allowed() ? "allowed" : "BLOCKED - read-only on unknown board",
+		dmi_get_system_info(DMI_BOARD_NAME) ?: "?",
+		dmi_get_system_info(DMI_SYS_VENDOR) ?: "?");
 
 	hp_omen_pdev = platform_device_register_simple("omen-wmi", -1, NULL, 0);
 	if (IS_ERR(hp_omen_pdev)) {
