@@ -1,0 +1,89 @@
+From a4d699ace8744083f1a2d64918751351f0eb27e0 Mon Sep 17 00:00:00 2001
+From: Rosary <lilyrosary0@gmail.com>
+Date: Tue, 20 Oct 2026 19:52:27 +0800
+Subject: [PATCH] platform/x86: hp-wmi: add OMEN 16-k0xxx (board 8A1A)
+
+Board 8A1A (HP OMEN 16-k0xxx) is an OMEN v1 machine whose EC layout matches
+omen_v1_thermal_params, but its fan interface differs from the Victus S
+boards that omen_v1_board_params currently reuses:
+
+  - fan speed is read with the generic GM 0x11 query (HPWMI_FAN_SPEED_GET),
+    values in the 1790-4990 RPM range are returned;
+  - the Victus S fan table (0x2C) and fan speed set (0x2D/0x2E) queries
+    return EIO on this board, so victus_s_fan_profile_params is wrong here;
+  - EC 0x95 reads a constant 0x30 (DEFAULT), consistent with the OMEN v1
+    EC offset used by omen_v1_thermal_params.
+
+Add an OMEN-specific fan profile that only provides get_fan_speed and wire
+it to a new board entry, so hwmon fan inputs are populated on 8A1A.
+
+Fan speed *writing* is deliberately not part of this change: the HP private
+GM12 command uses 0 as "hand back to firmware" and 255 as "pin at maximum",
+which does not map onto the hwmon pwm1 ABI without an explicit decision.
+
+Tested on: HP OMEN 16-k0xxx, board 8A1A, BIOS F.23.
+The read path above was verified with an out-of-tree module; this exact
+in-tree build has not been boot-tested on the machine.
+
+Signed-off-by: Rosary <lilyrosary0@gmail.com>
+---
+ drivers/platform/x86/hp/hp-wmi.c | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/platform/x86/hp/hp-wmi.c b/drivers/platform/x86/hp/hp-wmi.c
+index 615b4cf..36d377a 100644
+--- a/drivers/platform/x86/hp/hp-wmi.c
++++ b/drivers/platform/x86/hp/hp-wmi.c
+@@ -153,6 +153,17 @@ struct hp_wmi_board_params {
+ };
+ 
+ static int hp_wmi_get_fan_speed_victus_s(int fan);
++static int hp_wmi_get_fan_speed(int fan);
++
++/*
++ * OMEN 16-k0xxx (board 8A1A) reads fan speed with the generic GM 0x11
++ * query. It does not implement the Victus S fan table (0x2C) or the
++ * Victus S fan speed set (0x2D/0x2E) queries: those return EIO there.
++ */
++static const struct hp_wmi_fan_profile_params omen_gm12_fan_profile_params = {
++	.get_fan_speed	= hp_wmi_get_fan_speed,
++	.fan_table	= false,
++};
+ 
+ static const struct hp_wmi_fan_profile_params victus_s_fan_profile_params = {
+ 	.get_fan_speed	= hp_wmi_get_fan_speed_victus_s,
+@@ -179,6 +190,11 @@ static const struct hp_wmi_board_params omen_v1_no_ec_board_params = {
+ 	.fan_profile		= &victus_s_fan_profile_params,
+ };
+ 
++static const struct hp_wmi_board_params omen_gm12_board_params = {
++	.thermal_profile	= &omen_v1_thermal_params,
++	.fan_profile		= &omen_gm12_fan_profile_params,
++};
++
+ static const struct hp_wmi_board_params *active_board_params;
+ 
+ static const struct thermal_profile_params *hp_wmi_thermal_profile(void)
+@@ -207,7 +223,7 @@ static const char * const omen_thermal_profile_boards[] = {
+ 	"886B", "886C", "88C8", "88CB", "88D1", "88D2", "88F4", "88F5", "88F6",
+ 	"88F7", "88FD", "88FE", "88FF",
+ 	"8900", "8901", "8902", "8912", "8917", "8918", "8949", "894A", "89EB",
+-	"8A15", "8A42", "8A43",
++	"8A15", "8A1A", "8A42", "8A43",
+ 	"8BAD",
+ 	"8C58",
+ 	"8E41",
+@@ -243,6 +259,10 @@ static const struct dmi_system_id hp_wmi_feature_boards[] __initconst = {
+ 		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8902") },
+ 		.driver_data = (void *)&omen_v1_legacy_board_params,
+ 	},
++	{
++		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8A1A") },
++		.driver_data = (void *)&omen_gm12_board_params,
++	},
+ 	{
+ 		.matches = { DMI_MATCH(DMI_BOARD_NAME, "8A3D") },
+ 		.driver_data = (void *)&victus_s_board_params,
+-- 
+2.53.0
+

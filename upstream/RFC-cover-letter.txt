@@ -1,0 +1,38 @@
+Subject: [RFC PATCH] platform/x86: hp-wmi: add OMEN 16-k0xxx (board 8A1A)
+
+Hi,
+
+This adds board 8A1A (HP OMEN 16-k0xxx) to hp-wmi. It is an RFC for two
+reasons: fan speed writing is deliberately not included, and the in-tree
+build has not been boot-tested on the machine.
+
+What the board actually does (measured on 8A1A, BIOS F.23):
+
+  - fan RPM is read with the generic GM 0x11 query; 1790-4990 RPM observed;
+  - the Victus S fan table (0x2C) and fan speed set (0x2D/0x2E) queries
+    return EIO, so reusing victus_s_fan_profile_params is wrong here;
+  - EC 0x95 reads a constant 0x30 (DEFAULT), consistent with the OMEN v1
+    EC offset used by omen_v1_thermal_params.
+
+The patch therefore gives 8A1A its own fan profile that only provides
+get_fan_speed, and a board entry using omen_v1_thermal_params.
+
+Open question: fan speed writing.
+
+There is a working private command (GM12, 0x12) that takes a percentage
+per fan, but its value space is unusual:
+
+  - 0xFF 0xFF pins the fan at maximum, and there is no ASL path back;
+  - 0x00 means "hand control back to the firmware", not "stop";
+  - 0xFF 0x00 followed by a GM27 1->0 pulse releases control.
+
+That does not map onto the hwmon pwm1 ABI (0 = off, 255 = full) without
+deciding what pwm1=0 should mean. Would a writable pwm1 where 0 means
+"release to firmware" be acceptable, or would you prefer a separate sysfs
+attribute for this?
+
+Testing: the read path was verified with an out-of-tree module on the
+machine. This exact in-tree build has not been booted, because doing so
+would replace the running driver.
+
+Rosary
