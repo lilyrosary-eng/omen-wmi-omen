@@ -1,0 +1,19 @@
+[Unit]
+Description=确保当前内核有 hp-wmi-omen.ko（内核升级后自动重建）
+# modules-load 先试一次（快路径）；失败了再由本服务现场编译
+After=systemd-modules-load.service local-fs.target
+Before=omen-fand.service omen-wmi-perm.service
+# 没有源码/头文件时也要能"跑完但不做事"，所以不加 Condition
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/omen-wmi-ensure.sh
+# 编译可能要十几秒；给足时间，超时也只影响本次开机
+TimeoutStartSec=180
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=omen-wmi-build
+
+[Install]
+WantedBy=multi-user.target

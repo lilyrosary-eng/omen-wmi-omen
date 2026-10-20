@@ -1,0 +1,15 @@
+# OMEN WMI 控制接口 —— 允许 plugdev 组（普通用户）读写
+#
+# 为什么需要：内核模块把可写接口设为 0664（属主 + 属组可写），
+# 但 sysfs 文件的属组默认是 root。这里把属组改成 plugdev ——
+# 该组成员（桌面会话里的登录用户）即可直接读写，无需 sudo。
+#
+# ⚠ 为什么不是 0666：内核 VERIFY_OCTAL_PERMISSIONS 硬性禁止 other-writable
+#   （BUILD_BUG_ON_ZERO((perms) & 2)），传 0666 会编译失败。
+#   所以"普通用户可写"只能靠属组授权实现。
+#
+# 安装：sudo cp 99-omen-wmi.rules /etc/udev/rules.d/
+# 生效：sudo udevadm control --reload && sudo udevadm trigger
+#      （模块重载时会自动应用）
+
+ACTION=="add|change", SUBSYSTEM=="platform", KERNEL=="omen-wmi", ATTR{profile_version}=="*", GROUP="plugdev"

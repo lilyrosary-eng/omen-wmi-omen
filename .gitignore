@@ -1,0 +1,16 @@
+# kbuild 产物
+*.o
+*.ko
+*.mod
+*.mod.c
+*.symvers
+modules.order
+.tmp_versions/
+.*.cmd
+
+# 本地备份 / 构建残留
+*.bak-*
+*.dtb
+
+# 本机 ACPI 固件 dump（含厂商代码与本机标识，不随仓库发布）
+*.dat
